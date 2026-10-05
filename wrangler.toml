@@ -1,0 +1,47 @@
+name = "vendor-epm"
+main = "src/index.js"
+compatibility_date = "2026-07-01"
+
+# Preview only until launch: the app answers at vendor-epm.<account>.workers.dev
+# and nowhere on expertpm.com. Launch day adds a custom domain here, e.g.
+#   routes = [{ pattern = "vendors.expertpm.com", custom_domain = true }]
+workers_dev = true
+
+[vars]
+# Shows the "preview" banner. Set to "0" on launch day.
+PREVIEW = "1"
+# This app's own address. Change to the custom domain on launch day.
+APP_URL = "https://vendor-epm.john-a73.workers.dev"
+# Outbound side effects: the texts vendor actions trigger (to the office when a
+# vendor accepts, delays, finishes or quotes; to staff and the applicant on a
+# vendor application). "0" = OFF: nothing leaves the app, and each would-be
+# text is recorded in this app's own vendor_portal_held table instead. Flip to
+# "1" only on launch day, in the same release that points vendors here, so
+# nothing is ever sent twice. (This app sends no emails, makes no DoorLoop
+# writes and no Google Drive uploads.)
+SIDE_EFFECTS = "0"
+
+# The CRM's database, shared on purpose: same vendor accounts, same records.
+# Additive changes only (new tables/columns); never rename or drop anything
+# the CRM reads. See README "Database rules".
+[[d1_databases]]
+binding = "DB"
+database_name = "expertpm-crm"
+database_id = "fce2d707-869d-4866-a880-31959eada13d"
+
+# Shared with the CRM: vendor invoices (vb/<vendor>/...), quote photos
+# (qr/<request>/...), inspection photos on job pages, and application
+# certificates and rate cards (vapp/...) live here, under the same keys.
+[[kv_namespaces]]
+binding = "VENDOR_FILES"
+id = "eef706e98e57428ba31f04a82a1fc2d6"
+
+# Texts go through the same contact Worker the CRM uses, authenticated with
+# the shared DATA_PASSWORD secret. Only used when SIDE_EFFECTS = "1".
+[[services]]
+binding = "CONTACT"
+service = "expertpm-contact"
+
+# No cron triggers. Every vendor-related scheduled job (the bill-after chase
+# texts, the vendor-bill Google Drive archive) still runs on the CRM; README
+# "Crons" lists them.

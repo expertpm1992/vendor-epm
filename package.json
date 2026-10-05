@@ -1,0 +1,8 @@
+{
+  "name": "vendor-epm",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test --disable-warning=ExperimentalWarning \"tests/*.test.mjs\""
+  }
+}

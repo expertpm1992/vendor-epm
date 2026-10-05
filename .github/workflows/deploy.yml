@@ -1,0 +1,77 @@
+# Test every push and pull request; deploy vendor-epm to Cloudflare on push to
+# main. Tests gate the deploy: if any test fails, nothing ships.
+# The deploy step needs repo secret CLOUDFLARE_API_TOKEN (same kind of token
+# as expertpm-crm's: Workers Scripts edit + D1 edit). Until that secret is
+# added, the workflow still runs the tests and skips the deploy.
+# The first deploy also creates the Worker's VENDOR_PORTAL_SESSION_SECRET (a
+# random value nobody ever sees); later deploys leave it alone.
+name: Test and deploy
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-vendor-epm-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  test-and-deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      HAS_CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN != '' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Run tests
+        run: npm test
+      - name: Check the Worker bundles
+        run: npx --yes wrangler@4 deploy --dry-run --outdir dist
+      - name: Deploy to Cloudflare
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && env.HAS_CF_TOKEN == 'true'
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: a73e564e678ada1a38a48f0b82b3c558
+          wranglerVersion: "4"
+          command: deploy
+      - name: Create the session secret (first deploy only)
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && env.HAS_CF_TOKEN == 'true'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: a73e564e678ada1a38a48f0b82b3c558
+        run: |
+          # A failed lookup must stop here: replacing an existing secret
+          # would sign every vendor out.
+          if ! list=$(npx --yes wrangler@4 secret list --format json); then
+            echo "::error::Could not list the Worker's secrets"; exit 1
+          fi
+          if echo "$list" | grep -q '"VENDOR_PORTAL_SESSION_SECRET"'; then
+            echo "VENDOR_PORTAL_SESSION_SECRET already set, leaving it alone."
+          else
+            openssl rand -hex 32 | npx --yes wrangler@4 secret put VENDOR_PORTAL_SESSION_SECRET
+            echo "::notice::Created VENDOR_PORTAL_SESSION_SECRET."
+          fi
+      - name: Copy optional keys to the Worker (only the ones the repo has)
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && env.HAS_CF_TOKEN == 'true'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: a73e564e678ada1a38a48f0b82b3c558
+          # Same names and values as the CRM Worker's secrets.
+          DOORLOOP_API_KEY: ${{ secrets.DOORLOOP_API_KEY }}
+          DATA_PASSWORD: ${{ secrets.DATA_PASSWORD }}
+        run: |
+          for name in DOORLOOP_API_KEY DATA_PASSWORD; do
+            if [ -n "${!name}" ]; then
+              printf '%s' "${!name}" | npx --yes wrangler@4 secret put "$name"
+            else
+              echo "$name not set on the repo, skipping."
+            fi
+          done
+      - name: Deploy skipped
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && env.HAS_CF_TOKEN != 'true'
+        run: echo "::notice::CLOUDFLARE_API_TOKEN is not set on this repo yet, so tests ran but nothing was deployed."
