@@ -14,12 +14,14 @@ import { apiLogin, apiFirstPassword, currentVendor, sessionCookie } from "./auth
 import { LOGIN_HTML, APP_HTML, PREVIEW_LOGIN_NOTE } from "./pages.js";
 import { apiVendorWorkList, workPage, workRespond, workInspPhoto, TOKEN_RE } from "./work.js";
 import { workEnsure } from "./db.js";
+import { apiVendorProperties, apiVendorBillsList, apiVendorBillSubmit, vendorFileGet } from "./bills.js";
 import { apiVendorQuotesList, apiVendorQuotesSubmit, quotePhotoGet, openQuoteCount } from "./quotes.js";
 
 /* The app's tabs, in order. A tab appears once its screen is ported. */
 const TABS = [
   { key: "jobs", label: "Jobs" },
   { key: "quotes", label: "Quotes" },
+  { key: "bills", label: "Bills" },
   { key: "help", label: "Help" },
 ];
 
@@ -80,6 +82,11 @@ export async function handle(req, env, ctx) {
     if (p === "/api/vendor/work" && req.method === "GET") return apiVendorWorkList(env, v);
     if (p === "/api/vendor/quotes" && req.method === "GET") return apiVendorQuotesList(env, v);
     if (p === "/api/vendor/quotes/submit" && req.method === "POST") return apiVendorQuotesSubmit(req, env, v);
+    if (p === "/api/vendor/properties" && req.method === "GET") return apiVendorProperties(env);
+    if (p === "/api/vendor/bills" && req.method === "GET") return apiVendorBillsList(env, v);
+    if (p === "/api/vendor/bills" && req.method === "POST") return apiVendorBillSubmit(req, env, v);
+    const fm = p.match(/^\/api\/vendor\/file\/(\d+)$/);
+    if (fm && req.method === "GET") return vendorFileGet(env, Number(fm[1]), v.id);
     if (p === "/api/vendor/qphoto" && req.method === "GET") return quotePhotoGet(env, url.searchParams.get("key") || "", v.id);
     if (p === "/api/vendor/password/first" && req.method === "POST") return apiFirstPassword(req, env, v);
     return json({ error: "not found" }, 404);

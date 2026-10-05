@@ -6,6 +6,7 @@
 import { HELP_VIEW_JS } from "./views/help.js";
 import { JOBS_VIEW_JS } from "./views/jobs.js";
 import { QUOTES_VIEW_JS } from "./views/quotes.js";
+import { BILLS_VIEW_JS } from "./views/bills.js";
 
 export const ASSET_BASE = "https://epmwebsite.up.railway.app";
 export const LOGO = ASSET_BASE + "/lovable-uploads/9d675ac9-4658-4cc9-ac38-b78f7e3c7c2e.png";
@@ -216,6 +217,7 @@ export const APP_HTML = HEAD("ExpertPM Vendor Portal") + `
 </script>
 <script>${JOBS_VIEW_JS}</script>
 <script>${QUOTES_VIEW_JS}</script>
+<script>${BILLS_VIEW_JS}</script>
 <script>${HELP_VIEW_JS}</script>
 </body>
 </html>`;
