@@ -15,6 +15,7 @@ import { LOGIN_HTML, APP_HTML, PREVIEW_LOGIN_NOTE } from "./pages.js";
 import { apiVendorWorkList, workPage, workRespond, workInspPhoto, TOKEN_RE } from "./work.js";
 import { workEnsure } from "./db.js";
 import { apiVendorProperties, apiVendorBillsList, apiVendorBillSubmit, vendorFileGet } from "./bills.js";
+import { vendorsPage, vendorApplySubmit } from "./apply.js";
 import { apiVendorQuotesList, apiVendorQuotesSubmit, quotePhotoGet, openQuoteCount } from "./quotes.js";
 
 /* The app's tabs, in order. A tab appears once its screen is ported. */
@@ -62,6 +63,11 @@ export async function handle(req, env, ctx) {
     if (req.method === "GET") return workPage(m[1], env);
     if (req.method === "POST") return workRespond(m[1], req, env);
   }
+
+  // ---- the public recruiting page + application (expertpm.com/vendors on the CRM) ----
+  if ((p === "/vendors" || p === "/vendors/") && (req.method === "GET" || req.method === "HEAD")) return vendorsPage(env);
+  if (p === "/vendors/apply" && req.method === "POST") return vendorApplySubmit(req, env);
+  if (p.startsWith("/vendors/")) return redirect("/vendors/");
 
   // ---- the portal (the CRM serves it at /vendor and /vendor/app) ----
   if ((p === "/" || p === "/vendor" || p === "/vendor/") && req.method === "GET") {
