@@ -12,9 +12,12 @@
 import { json, html, redirect, notFound } from "./http.js";
 import { apiLogin, apiFirstPassword, currentVendor, sessionCookie } from "./auth.js";
 import { LOGIN_HTML, APP_HTML, PREVIEW_LOGIN_NOTE } from "./pages.js";
+import { apiVendorWorkList, workPage, workRespond, workInspPhoto, TOKEN_RE } from "./work.js";
+import { workEnsure } from "./db.js";
 
 /* The app's tabs, in order. A tab appears once its screen is ported. */
 const TABS = [
+  { key: "jobs", label: "Jobs" },
   { key: "help", label: "Help" },
 ];
 
@@ -23,6 +26,15 @@ export function isPreview(env) { return String(env.PREVIEW ?? "1") !== "0"; }
 
 function loginPage(env) {
   return LOGIN_HTML.replace("<!--PREVIEW-->", isPreview(env) ? PREVIEW_LOGIN_NOTE : "");
+}
+
+/* Tab badges: how many things are waiting on this vendor. */
+async function waitingCounts(env, v) {
+  await workEnsure(env);
+  const w = await env.DB.prepare(
+    "SELECT COUNT(*) AS n FROM work_orders WHERE status = 'sent' AND (vendor_account_id = ?1 OR (vendor_phone IS NOT NULL AND vendor_phone != '' AND vendor_phone = ?2))"
+  ).bind(v.id, v.phone || "").first();
+  return { jobs: (w && w.n) || 0 };
 }
 
 export async function handle(req, env, ctx) {
@@ -39,6 +51,14 @@ export async function handle(req, env, ctx) {
 
   if (!env.DB) return json({ error: "Database not bound (DB)" }, 500);
 
+  // ---- job pages texted to vendors: no sign-in, the token is the key ----
+  let m;
+  if ((m = p.match(new RegExp("^/work/(" + TOKEN_RE + ")/photo/([A-Za-z0-9._-]+)$"))) && req.method === "GET") return workInspPhoto(m[1], m[2], url, env);
+  if ((m = p.match(new RegExp("^/work/(" + TOKEN_RE + ")$")))) {
+    if (req.method === "GET") return workPage(m[1], env);
+    if (req.method === "POST") return workRespond(m[1], req, env);
+  }
+
   // ---- the portal (the CRM serves it at /vendor and /vendor/app) ----
   if ((p === "/" || p === "/vendor" || p === "/vendor/") && req.method === "GET") {
     return (await currentVendor(req, env)) ? redirect("/app") : html(loginPage(env));
@@ -53,8 +73,9 @@ export async function handle(req, env, ctx) {
     const v = await currentVendor(req, env);
     if (!v) return json({ error: "unauthorized" }, 401);
     if (p === "/api/vendor/me" && req.method === "GET") {
-      return json({ vendor: { name: v.name, email: v.email }, mustChange: !!v.must_change_password, via: v.via, tabs: TABS, preview: isPreview(env) });
+      return json({ vendor: { name: v.name, email: v.email }, mustChange: !!v.must_change_password, via: v.via, tabs: TABS, counts: await waitingCounts(env, v), preview: isPreview(env) });
     }
+    if (p === "/api/vendor/work" && req.method === "GET") return apiVendorWorkList(env, v);
     if (p === "/api/vendor/password/first" && req.method === "POST") return apiFirstPassword(req, env, v);
     return json({ error: "not found" }, 404);
   }

@@ -4,6 +4,7 @@
    Each tab's screen lives in src/views/ and registers itself on VIEWS. */
 
 import { HELP_VIEW_JS } from "./views/help.js";
+import { JOBS_VIEW_JS } from "./views/jobs.js";
 
 export const ASSET_BASE = "https://epmwebsite.up.railway.app";
 export const LOGO = ASSET_BASE + "/lovable-uploads/9d675ac9-4658-4cc9-ac38-b78f7e3c7c2e.png";
@@ -205,13 +206,14 @@ export const APP_HTML = HEAD("ExpertPM Vendor Portal") + `
     });
   });
   api('/api/vendor/me').then(function(d){
-    ME = d.vendor; TABS = d.tabs || [];
+    ME = d.vendor; TABS = d.tabs || []; COUNTS = d.counts || {};
     document.getElementById('who').textContent = ME.name + (d.via === 'staff' ? ' (signed in with your staff account)' : '');
     if (d.preview) document.getElementById('banner').hidden = false;
     if (d.mustChange) document.getElementById('fpWrap').hidden = false;
     fromHash(); render();
   }).catch(function(e){ if (e.message !== 'auth') document.getElementById('view').innerHTML = '<div class="empty">Could not load your account. Refresh to try again.</div>'; });
 </script>
+<script>${JOBS_VIEW_JS}</script>
 <script>${HELP_VIEW_JS}</script>
 </body>
 </html>`;
