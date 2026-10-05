@@ -40,7 +40,7 @@ test("the Jobs tab lists only the signed-in vendor's work, with a waiting count"
   const rows = (await vic("/api/vendor/work")).body.rows;
   assert.deepEqual(rows.map((r) => r.property).sort(), ["12 Elm St", "34 Oak Ave", "56 Pine Rd", "78 Birch Ln", "90 Maple Dr"]);
   assert.equal(rows[0].status, "sent"); // waiting-on-you first
-  assert.deepEqual((await vic("/api/vendor/me")).body.counts, { jobs: 3 });
+  assert.deepEqual((await vic("/api/vendor/me")).body.counts, { jobs: 3, quotes: 0 });
   const wanda = await as(env, "wanda@clean.com");
   assert.deepEqual((await wanda("/api/vendor/work")).body.rows.map((r) => r.property).sort(), ["88 Wanda Ct", "99 Wanda Way"]);
   assert.deepEqual(writes(env).filter((w) => !/vendor_accounts/.test(w)), []); // reads only (plus the login stamp)

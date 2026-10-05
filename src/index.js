@@ -14,10 +14,12 @@ import { apiLogin, apiFirstPassword, currentVendor, sessionCookie } from "./auth
 import { LOGIN_HTML, APP_HTML, PREVIEW_LOGIN_NOTE } from "./pages.js";
 import { apiVendorWorkList, workPage, workRespond, workInspPhoto, TOKEN_RE } from "./work.js";
 import { workEnsure } from "./db.js";
+import { apiVendorQuotesList, apiVendorQuotesSubmit, quotePhotoGet, openQuoteCount } from "./quotes.js";
 
 /* The app's tabs, in order. A tab appears once its screen is ported. */
 const TABS = [
   { key: "jobs", label: "Jobs" },
+  { key: "quotes", label: "Quotes" },
   { key: "help", label: "Help" },
 ];
 
@@ -34,7 +36,7 @@ async function waitingCounts(env, v) {
   const w = await env.DB.prepare(
     "SELECT COUNT(*) AS n FROM work_orders WHERE status = 'sent' AND (vendor_account_id = ?1 OR (vendor_phone IS NOT NULL AND vendor_phone != '' AND vendor_phone = ?2))"
   ).bind(v.id, v.phone || "").first();
-  return { jobs: (w && w.n) || 0 };
+  return { jobs: (w && w.n) || 0, quotes: await openQuoteCount(env, v) };
 }
 
 export async function handle(req, env, ctx) {
@@ -76,6 +78,9 @@ export async function handle(req, env, ctx) {
       return json({ vendor: { name: v.name, email: v.email }, mustChange: !!v.must_change_password, via: v.via, tabs: TABS, counts: await waitingCounts(env, v), preview: isPreview(env) });
     }
     if (p === "/api/vendor/work" && req.method === "GET") return apiVendorWorkList(env, v);
+    if (p === "/api/vendor/quotes" && req.method === "GET") return apiVendorQuotesList(env, v);
+    if (p === "/api/vendor/quotes/submit" && req.method === "POST") return apiVendorQuotesSubmit(req, env, v);
+    if (p === "/api/vendor/qphoto" && req.method === "GET") return quotePhotoGet(env, url.searchParams.get("key") || "", v.id);
     if (p === "/api/vendor/password/first" && req.method === "POST") return apiFirstPassword(req, env, v);
     return json({ error: "not found" }, 404);
   }
